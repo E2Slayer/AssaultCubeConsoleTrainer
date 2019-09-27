@@ -6,7 +6,6 @@
 #include "ReadWriteHelper.h"
 
 
-
 int main()
 {
     std::cout << "Hello World!\n";
@@ -43,6 +42,11 @@ int main()
 		uintptr_t armor = player + 0xfc;
 		//WriteMemory(handle, ammo, 34);
 
+		//vector3<float> hi;
+
+		uintptr_t playerx = player + 0x34;
+		uintptr_t playery = player + 0x38;
+		uintptr_t playerz = player + 0x3c;
 
 		bool infiniteAmmo = false;
 		bool infiniteAmmoSub = false;
@@ -50,13 +54,25 @@ int main()
 		bool infiniteHealth = false;
 		bool infiniteArmor = false;
 
+		float x = 0.0f, y = 0.0f, z = 0.0f;
+
+		float sx = 0.0f, sy = 0.0f, sz = 0.0f;
+
+		
 		while(true)
 		{
+			ReadProcessMemory(handle, reinterpret_cast<BYTE*>(playerx), &x, sizeof(x), nullptr);
+			ReadProcessMemory(handle, reinterpret_cast<BYTE*>(playery), &y, sizeof(y), nullptr);
+			ReadProcessMemory(handle, reinterpret_cast<BYTE*>(playerz), &z, sizeof(z), nullptr);
+			
 			system("cls");
 			printf("[F1]\t Infinite Ammo [Main] : %d \n", infiniteAmmo);
 			printf("[F2]\t Infinite Ammo [Sub] : %d \n", infiniteAmmoSub);
 			printf("[F3]\t Infinite Health : %d \n", infiniteHealth);
 			printf("[F4]\t Infinite Armor : %d \n", infiniteArmor);
+			printf("[F5]\t Teleport to Saved Pos \n");
+			printf("[F6]\t Save the Current Pos \n");
+			printf("[Player Pox]\t %f %f %f \n", x, y, z);
 
 			if(GetKeyState(VK_F1) & 0x8000)
 			{
@@ -78,6 +94,24 @@ int main()
 				infiniteArmor = !infiniteArmor;
 			}
 
+			if (GetKeyState(VK_F5) & 0x8000)
+			{
+				if(sx != 0.0f && sy != 0.0f && sz != 0.0f)
+				{
+					WriteMemory(handle, playerx, sx);
+					WriteMemory(handle, playery, sy);
+					WriteMemory(handle, playerz, sz);
+				}
+
+			}
+
+			if (GetKeyState(VK_F6) & 0x8000)
+			{
+				sx = x;
+				sy = y;
+				sz = z;
+			}
+			
 			if(infiniteAmmo)
 			{
 				WriteMemory(handle, ammo, 34);
