@@ -5,19 +5,38 @@
 #include "ProcessHelper.h"
 #include "ReadWriteHelper.h"
 
+HANDLE handle = nullptr;
+
+struct PlayerEntity
+{
+	uintptr_t LocalPlayer; //address of our ent
+	//int Team;
+	int Health;
+	float Position[3];
+	char Name[32];
+	void ReadInformation()
+	{
+		ReadProcessMemory(handle, reinterpret_cast<BYTE*>(LocalPlayer+0xf8), &Health, sizeof(Health), nullptr);
+		ReadProcessMemory(handle, reinterpret_cast<BYTE*>(LocalPlayer + 0x34), &Position, sizeof(Position), nullptr);
+		ReadProcessMemory(handle, reinterpret_cast<BYTE*>(LocalPlayer + 0x225), &Name, sizeof(Name), nullptr);
+
+	}
+};
 
 int main()
 {
-    std::cout << "Hello World!\n";
 
 	uintptr_t pID = GetProcessID(L"ac_client.exe"); // Since we need only the assaultcube process, I hard coded the process name.
 
 	uintptr_t moduleBase = GetModuleBase(L"ac_client.exe"); // Since we need only the assaultcube process, I hard coded the process name.
 
 
-	HANDLE handle = OpenProcess(PROCESS_ALL_ACCESS, TRUE, pID);
-
-	if(handle)
+    handle = OpenProcess(PROCESS_ALL_ACCESS, TRUE, pID);
+	if (!handle)
+	{
+		std::cout << "AssaultCube Process has not been found !" << std::endl;
+	}
+	else if(handle)
 	{
 		std::cout << "Open Process succeeded" << std::endl;
 
@@ -58,7 +77,34 @@ int main()
 
 		float sx = 0.0f, sy = 0.0f, sz = 0.0f;
 
+
+		//PlayerEntity* testing = new PlayerEntity[4];
+
+		//const std::vector<uintptr_t> distanceP = { 0x0 };
+		uintptr_t playersEnt = moduleBase + 0x00110D90;
 		
+
+		
+
+
+		PlayerEntity* testEntities = new PlayerEntity[4];
+		
+		
+		uintptr_t dis = 0x0;
+		for (int i =0; i<4; ++i)
+		{
+			const std::vector<uintptr_t> distanceP = { 0x0, 0x0 };
+			uintptr_t temp = MultiLevelPointer(handle, playersEnt, distanceP);
+			std::cout << "temp : " << std::hex << temp << std::endl;
+			testEntities[i].LocalPlayer = temp;
+			testEntities[i].ReadInformation();
+
+			std::cout << "info " << testEntities[i].Health << std::endl;
+			dis += 0x4;
+		}
+
+		
+		return 0;
 		while(true)
 		{
 			ReadProcessMemory(handle, reinterpret_cast<BYTE*>(playerx), &x, sizeof(x), nullptr);

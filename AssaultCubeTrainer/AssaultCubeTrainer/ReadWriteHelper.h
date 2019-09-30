@@ -15,4 +15,6 @@ void WriteMemory(HANDLE handle, uintptr_t& add, T value)
 
 }
 
+void ReadMemory(HANDLE handle, uintptr_t& add);
+
 uintptr_t MultiLevelPointer(HANDLE handle, uintptr_t address, const std::vector<uintptr_t>& levels);
