@@ -4,6 +4,44 @@
 #include <iostream>
 #include "ProcessHelper.h"
 #include "ReadWriteHelper.h"
+#include <algorithm>
+#define PI 3.1415927f
+
+struct vec3
+{
+	float x, y, z;
+};
+
+vec3 Subtract(vec3 src, vec3 dst)
+{
+	vec3 diff;
+	diff.x = src.x - dst.x;
+	diff.y = src.y - dst.y;
+	diff.z = src.z - dst.z;
+	return diff;
+}
+
+float Magnitude(vec3 vec)
+{
+	return sqrtf(vec.x * vec.x + vec.y * vec.y + vec.z * vec.z);
+}
+
+float Distance(vec3 src, vec3 dst)
+{
+	vec3 diff = Subtract(src, dst);
+	return Magnitude(diff);
+}
+
+vec3 CalcAngle(vec3 src, vec3 dst)
+{
+	vec3 angle;
+	angle.x = -atan2f(dst.x - src.x, dst.y - src.y) / PI * 180.0f + 180.0f;
+	angle.y = asinf((dst.z - src.z) / Distance(src, dst)) * 180.0f / PI;
+	angle.z = 0.0f;
+
+	return angle;
+}
+
 
 HANDLE handle = nullptr;
 
@@ -12,16 +50,42 @@ struct PlayerEntity
 	uintptr_t LocalPlayer; //address of our ent
 	//int Team;
 	int Health;
-	float Position[3];
+	vec3 Position;
+	vec3 ViewAngle;
 	char Name[32];
 	void ReadInformation()
 	{
 		ReadProcessMemory(handle, reinterpret_cast<BYTE*>(LocalPlayer+0xf8), &Health, sizeof(Health), nullptr);
 		ReadProcessMemory(handle, reinterpret_cast<BYTE*>(LocalPlayer + 0x34), &Position, sizeof(Position), nullptr);
+		ReadProcessMemory(handle, reinterpret_cast<BYTE*>(LocalPlayer + 0x40), &ViewAngle, sizeof(ViewAngle), nullptr);
+
 		ReadProcessMemory(handle, reinterpret_cast<BYTE*>(LocalPlayer + 0x225), &Name, sizeof(Name), nullptr);
 
 	}
 };
+
+
+void CalcAngle(float* src, float* dst, float* angles)
+{
+	double delta[3] = { (src[0] - dst[0]), (src[1] - dst[1]), (src[2] - dst[2]) };
+	double hyp = sqrt(delta[0] * delta[0] + delta[1] * delta[1]);
+	angles[0] = (float)(asinf(delta[2] / hyp) * 57.295779513082f);
+	angles[1] = (float)(atanf(delta[1] / delta[0]) * 57.295779513082f);
+	angles[2] = 0.0f;
+
+	/*
+	 *
+	angle.x = -atan2f(dst.x - src.x, dst.y - src.y) / PI * 180.0f + 180.0f;
+	angle.y = asinf((dst.z - src.z) / Distance(src, dst)) * 180.0f / PI;
+	angle.z = 0.0f;
+	 */
+
+	//normalize angle
+	if (delta[0] >= 0.0)
+	{
+		angles[1] += 180.0f;
+	}
+}
 
 int main()
 {
@@ -36,7 +100,7 @@ int main()
 	{
 		std::cout << "AssaultCube Process has not been found !" << std::endl;
 	}
-	else if(handle)
+	else if (handle)
 	{
 		std::cout << "Open Process succeeded" << std::endl;
 
@@ -48,7 +112,7 @@ int main()
 		std::cout << "Module Base : " << std::hex << moduleBase << " entity " << entity << std::endl;
 		const std::vector<uintptr_t> test = { 0x0 };
 		uintptr_t player = MultiLevelPointer(handle, entity, test);
-		
+
 
 		std::cout << "Where am I ? : 0x" << std::hex << player << std::endl;
 
@@ -67,6 +131,9 @@ int main()
 		uintptr_t playery = player + 0x38;
 		uintptr_t playerz = player + 0x3c;
 
+		uintptr_t playerViewAngle = player + 0x40;
+
+
 		bool infiniteAmmo = false;
 		bool infiniteAmmoSub = false;
 
@@ -80,31 +147,60 @@ int main()
 
 		//PlayerEntity* testing = new PlayerEntity[4];
 
+
+
+
+		
 		//const std::vector<uintptr_t> distanceP = { 0x0 };
 		uintptr_t playersEnt = moduleBase + 0x00110D90;
-		
 
-		
 
+
+		PlayerEntity localPlayerEntity;
+		localPlayerEntity.LocalPlayer = player;
 
 		PlayerEntity* testEntities = new PlayerEntity[4];
-		
-		
-		uintptr_t dis = 0x0;
-		for (int i =0; i<4; ++i)
-		{
-			const std::vector<uintptr_t> distanceP = { 0x0, 0x0 };
-			uintptr_t temp = MultiLevelPointer(handle, playersEnt, distanceP);
-			std::cout << "temp : " << std::hex << temp << std::endl;
-			testEntities[i].LocalPlayer = temp;
-			testEntities[i].ReadInformation();
 
-			std::cout << "info " << testEntities[i].Health << std::endl;
-			dis += 0x4;
+		while (true)
+		{
+			system("cls");
+
+			//localPlayerEntity.LocalPlayer = player;
+			localPlayerEntity.ReadInformation();
+			
+			
+			uintptr_t dis = 0x0;
+			for (int i = 0; i < 1; ++i)
+			{
+				const std::vector<uintptr_t> distanceP = { dis, 0x0 };
+				uintptr_t temp = MultiLevelPointer(handle, playersEnt, distanceP);
+				std::cout << "temp : " << std::hex << temp << std::endl;
+				testEntities[i].LocalPlayer = temp;
+				testEntities[i].ReadInformation();
+				std::cout << "Name " << testEntities[i].Name << std::endl;
+				std::cout << "info " << std::dec << testEntities[i].Health << std::endl;
+				printf("[Pox]\t %f %f %f \n", testEntities[i].Position.x, testEntities[i].Position.y, testEntities[i].Position.z);
+				dis += 0x4;
+
+				//CalcAngle(localPlayerEntity.Position, testEntities[i].Position);
+
+				if (GetKeyState(VK_F1) & 0x8000)
+				{
+					//
+					WriteMemory(handle, playerViewAngle, CalcAngle(localPlayerEntity.Position, testEntities[i].Position));
+				}
+			}
+
+		
+
+			Sleep(100);
 		}
 
+		delete[] testEntities;
 		
 		return 0;
+
+		/*
 		while(true)
 		{
 			ReadProcessMemory(handle, reinterpret_cast<BYTE*>(playerx), &x, sizeof(x), nullptr);
@@ -180,6 +276,7 @@ int main()
 			
 			Sleep(100);
 		}
+		*/
 		
 		
 	}
