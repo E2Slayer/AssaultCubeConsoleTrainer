@@ -53,39 +53,35 @@ struct PlayerEntity
 	vec3 Position;
 	vec3 ViewAngle;
 	char Name[32];
+	bool valid = false;
 	void ReadInformation()
 	{
-		ReadProcessMemory(handle, reinterpret_cast<BYTE*>(LocalPlayer+0xf8), &Health, sizeof(Health), nullptr);
+		if (!ReadProcessMemory(handle, reinterpret_cast<BYTE*>(LocalPlayer+0xf8), &Health, sizeof(Health), nullptr))
+		{
+			valid = false;
+		}
+		
 		ReadProcessMemory(handle, reinterpret_cast<BYTE*>(LocalPlayer + 0x34), &Position, sizeof(Position), nullptr);
 		ReadProcessMemory(handle, reinterpret_cast<BYTE*>(LocalPlayer + 0x40), &ViewAngle, sizeof(ViewAngle), nullptr);
 
-		ReadProcessMemory(handle, reinterpret_cast<BYTE*>(LocalPlayer + 0x225), &Name, sizeof(Name), nullptr);
+		if (!ReadProcessMemory(handle, reinterpret_cast<BYTE*>(LocalPlayer + 0x225), &Name, sizeof(Name), nullptr))
+		{
+			valid = false;
+		}
+		else
+		{
+			valid = true;
+		}
 
+		if(Position.x == 0.0f)
+		{
+			valid = false;
+		}
+		
+		
 	}
 };
 
-
-void CalcAngle(float* src, float* dst, float* angles)
-{
-	double delta[3] = { (src[0] - dst[0]), (src[1] - dst[1]), (src[2] - dst[2]) };
-	double hyp = sqrt(delta[0] * delta[0] + delta[1] * delta[1]);
-	angles[0] = (float)(asinf(delta[2] / hyp) * 57.295779513082f);
-	angles[1] = (float)(atanf(delta[1] / delta[0]) * 57.295779513082f);
-	angles[2] = 0.0f;
-
-	/*
-	 *
-	angle.x = -atan2f(dst.x - src.x, dst.y - src.y) / PI * 180.0f + 180.0f;
-	angle.y = asinf((dst.z - src.z) / Distance(src, dst)) * 180.0f / PI;
-	angle.z = 0.0f;
-	 */
-
-	//normalize angle
-	if (delta[0] >= 0.0)
-	{
-		angles[1] += 180.0f;
-	}
-}
 
 int main()
 {
@@ -159,7 +155,7 @@ int main()
 		PlayerEntity localPlayerEntity;
 		localPlayerEntity.LocalPlayer = player;
 
-		PlayerEntity* testEntities = new PlayerEntity[4];
+		PlayerEntity* testEntities = new PlayerEntity[16];
 
 		while (true)
 		{
@@ -172,25 +168,37 @@ int main()
 			vec3 tempVec = {0.0f, 0.0f, 0.0f};
 			
 			uintptr_t dis = 0x0;
-			for (int i = 0; i < 3; ++i)
+			for (int i = 0; i < 16; ++i)
 			{
 				const std::vector<uintptr_t> distanceP = { dis, 0x0 };
 				uintptr_t temp = MultiLevelPointer(handle, playersEnt, distanceP);
+
+				
 				std::cout << "temp : " << std::hex << temp << std::endl;
 				testEntities[i].LocalPlayer = temp;
 				testEntities[i].ReadInformation();
+
+
+				if (!testEntities[i].valid)
+				{
+					break;
+				}
+				
 				std::cout << "Name " << testEntities[i].Name << std::endl;
 				std::cout << "info " << std::dec << testEntities[i].Health << std::endl;
 				printf("[Pox]\t %f %f %f \n", testEntities[i].Position.x, testEntities[i].Position.y, testEntities[i].Position.z);
-				dis += 0x4;
+				
 
 
-				if(Distance(localPlayerEntity.Position, testEntities[i].Position) < closestTarget && testEntities[i].Health > 0)
+				if (Distance(localPlayerEntity.Position, testEntities[i].Position) < closestTarget && testEntities[i].Health > 0)
 				{
 					tempVec = CalcAngle(localPlayerEntity.Position, testEntities[i].Position);
 					closestTarget = Distance(localPlayerEntity.Position, testEntities[i].Position);
 				}
-				//CalcAngle(localPlayerEntity.Position, testEntities[i].Position);
+					//CalcAngle(localPlayerEntity.Position, testEntities[i].Position);
+				
+
+				dis += 0x4;
 
 			}
 
