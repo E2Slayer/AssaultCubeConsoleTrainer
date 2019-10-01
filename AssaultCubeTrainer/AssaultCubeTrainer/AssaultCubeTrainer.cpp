@@ -167,10 +167,12 @@ int main()
 
 			//localPlayerEntity.LocalPlayer = player;
 			localPlayerEntity.ReadInformation();
-			
+
+			float closestTarget = 1000.0f;
+			vec3 tempVec = {0.0f, 0.0f, 0.0f};
 			
 			uintptr_t dis = 0x0;
-			for (int i = 0; i < 1; ++i)
+			for (int i = 0; i < 3; ++i)
 			{
 				const std::vector<uintptr_t> distanceP = { dis, 0x0 };
 				uintptr_t temp = MultiLevelPointer(handle, playersEnt, distanceP);
@@ -182,16 +184,22 @@ int main()
 				printf("[Pox]\t %f %f %f \n", testEntities[i].Position.x, testEntities[i].Position.y, testEntities[i].Position.z);
 				dis += 0x4;
 
+
+				if(Distance(localPlayerEntity.Position, testEntities[i].Position) < closestTarget && testEntities[i].Health > 0)
+				{
+					tempVec = CalcAngle(localPlayerEntity.Position, testEntities[i].Position);
+					closestTarget = Distance(localPlayerEntity.Position, testEntities[i].Position);
+				}
 				//CalcAngle(localPlayerEntity.Position, testEntities[i].Position);
 
-				if (GetKeyState(VK_F1) & 0x8000)
-				{
-					//
-					WriteMemory(handle, playerViewAngle, CalcAngle(localPlayerEntity.Position, testEntities[i].Position));
-				}
 			}
 
-		
+			if (GetKeyState(VK_F1) & 0x8000)
+			{
+
+				WriteMemory(handle, playerViewAngle, tempVec);
+				
+			}
 
 			Sleep(100);
 		}
